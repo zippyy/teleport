@@ -729,7 +729,7 @@ func (c *TunClient) getAuthServers() (out []utils.NetAddr) {
 
 	// return static auth servers followed by discovered ones. this guarantees
 	// that the client will try statically configured ones first
-	out = make([]utils.NetAddr, 0, len(c.staticAuthServers)+len(c.discoveredAuthServers))
+	out = make([]utils.NetAddr, 0)
 	out = append(out, c.staticAuthServers...)
 	out = append(out, c.discoveredAuthServers...)
 	return out
