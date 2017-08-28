@@ -27,8 +27,8 @@ import (
 
 	"github.com/gravitational/teleport"
 
-	log "github.com/Sirupsen/logrus"
-	logrusSyslog "github.com/Sirupsen/logrus/hooks/syslog"
+	log "github.com/sirupsen/logrus"
+	logrusSyslog "github.com/sirupsen/logrus/hooks/syslog"
 	"github.com/gravitational/kingpin"
 	"github.com/gravitational/trace"
 )

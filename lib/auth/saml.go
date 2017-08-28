@@ -13,7 +13,7 @@ import (
 	"github.com/gravitational/teleport/lib/utils"
 	"github.com/gravitational/trace"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/beevik/etree"
 	saml2 "github.com/russellhaering/gosaml2"
 )

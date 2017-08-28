@@ -26,7 +26,7 @@ import (
 	"github.com/gravitational/teleport/lib/events"
 	"github.com/gravitational/teleport/lib/session"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/cenkalti/backoff"
 	"github.com/gravitational/trace"
 	"github.com/prometheus/client_golang/prometheus"

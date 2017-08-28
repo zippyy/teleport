@@ -35,7 +35,7 @@ import (
 	"github.com/gravitational/teleport/lib/sshutils"
 	"github.com/gravitational/teleport/lib/utils"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/gravitational/trace"
 	"github.com/mailgun/ttlmap"
 	"golang.org/x/crypto/ssh"

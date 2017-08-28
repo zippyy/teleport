@@ -41,13 +41,13 @@ import (
 	"github.com/gravitational/teleport/lib/utils"
 	"github.com/gravitational/teleport/lib/web"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/buger/goterm"
 	"github.com/gravitational/kingpin"
 	"github.com/gravitational/trace"
 	"github.com/jonboulle/clockwork"
 	"golang.org/x/crypto/ssh"
-	kyaml "k8s.io/client-go/1.4/pkg/util/yaml"
+	kyaml "k8s.io/client-go/pkg/util/yaml"
 )
 
 type CLIConfig struct {

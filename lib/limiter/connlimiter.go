@@ -20,7 +20,7 @@ import (
 	"net/http"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/gravitational/trace"
 	"github.com/vulcand/oxy/connlimit"
 	"github.com/vulcand/oxy/utils"

@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/codahale/hdrhistogram"
 	"github.com/gravitational/trace"
 )

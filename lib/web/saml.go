@@ -8,7 +8,7 @@ import (
 	"github.com/gravitational/teleport/lib/httplib"
 	"github.com/gravitational/teleport/lib/services"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/gravitational/form"
 	"github.com/gravitational/trace"
 	"github.com/julienschmidt/httprouter"

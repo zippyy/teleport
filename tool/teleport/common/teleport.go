@@ -32,7 +32,7 @@ import (
 	"github.com/gravitational/teleport/lib/sshutils/scp"
 	"github.com/gravitational/teleport/lib/utils"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/google/gops/agent"
 	"github.com/gravitational/roundtrip"
 	"github.com/gravitational/trace"
