@@ -15,11 +15,11 @@ limitations under the License.
 */
 
 .grv-session-player{
-  padding: 15px 25px 50px 90px;
+  padding: 10px 10px 45px 90px;
 
   .grv-terminal{
     overflow: hidden;
-    position: relative;
+    position: relative;    
     height: 100%;
   }
 
@@ -32,18 +32,44 @@ limitations under the License.
   .ps-container {
 
     > .ps-scrollbar-y-rail{
-      width: 0;
+      width: 0;      
+    }
+
+    > .ps-scrollbar-y-rail > .ps-scrollbar-y {
+      width: 6px !important;
+      animation: none !important;
+      border-radius: 0;
     }
 
     > .ps-scrollbar-x-rail{
-      height: 0;
+      height: 0;      
+    }
+
+    > .ps-scrollbar-x-rail > .ps-scrollbar-x {
+      height: 6px !important;
+      animation: none !important;
+      border-radius: 0;
+    }
+  }
+
+
+  .grv-session-player-content{
+    height: 100%;
+    background-color: #464646;            
+    .grv-session-player-content-recording{
+      height: 100%;            
+      border: 2px solid;
+      padding: 1px;
+      background-color: #252323;      
     }
   }
 
   .grv-session-player-controls{
-    margin-top: 10px;
+    margin-top: 5px;
     display: flex;
-    color: #ddd;
+    color: #ddd;    
+    background-color: #464646;
+    padding: 5px;
 
     .grv-flex-column{
       align-self: center;

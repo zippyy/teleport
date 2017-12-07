@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 import $ from 'jQuery';
+import ReactDOM from 'react-dom';
 import initScroll from 'perfect-scrollbar/jquery';
 import React from 'react';
 import { connect } from 'nuclear-js-react-addons';
@@ -88,6 +89,10 @@ const Player = React.createClass({
 
     this.tty.on('change', this.updateState)
     this.tty.play();
+
+    const el = ReactDOM.findDOMNode(this)
+    const btn = el.querySelector('.grv-session-player-controls button');
+    btn && btn.focus();     
   },
 
   updateState(){
@@ -128,23 +133,27 @@ const Player = React.createClass({
 
     return (
       <Box>
-        <div ref="container"/>
-        <div className="grv-session-player-controls">         
-         <button className="btn" onClick={this.togglePlayStop}>
-           { isPlaying ? <i className="fa fa-stop"></i> :  <i className="fa fa-play"></i> }
-         </button>
-         <div className="grv-session-player-controls-time">{time}</div>
-         <div className="grv-flex-column">
-           <ReactSlider
-              min={this.state.min}
-              max={this.state.length}
-              value={this.state.current}
-              onChange={this.move}
-              defaultValue={1}
-              withBars
-              className="grv-slider" />
-         </div>          
-        </div>  
+        <div className="grv-session-player-content">
+          <div className="grv-session-player-content-recording">  
+            <div ref="container" />
+          </div>    
+          <div className="grv-session-player-controls">         
+            <button className="btn" onClick={this.togglePlayStop}>
+              { isPlaying ? <i className="fa fa-stop"></i> :  <i className="fa fa-play"></i> }
+            </button>
+            <div className="grv-session-player-controls-time">{time}</div>
+            <div className="grv-flex-column">
+              <ReactSlider
+                  min={this.state.min}
+                  max={this.state.length}
+                  value={this.state.current}
+                  onChange={this.move}
+                  defaultValue={1}
+                  withBars
+                  className="grv-slider" />
+            </div>          
+          </div>  
+        </div>    
       </Box>     
      );
   }
