@@ -499,22 +499,9 @@ func (r *RoleV3) CheckAndSetDefaults() error {
 		return trace.Wrap(err)
 	}
 
-	// make sure we have defaults for all fields
-	if r.Spec.Options == nil {
-		r.Spec.Options = map[string]interface{}{
-			CertificateFormat: teleport.CertificateFormatStandard,
-			MaxSessionTTL:     NewDuration(defaults.MaxCertDuration),
-			PortForwarding:    true,
-		}
-	}
-	if r.Spec.Allow.Namespaces == nil {
-		r.Spec.Allow.Namespaces = []string{defaults.Namespace}
-	}
-	if r.Spec.Allow.NodeLabels == nil {
-		r.Spec.Allow.NodeLabels = map[string]string{Wildcard: Wildcard}
-	}
-	if r.Spec.Deny.Namespaces == nil {
-		r.Spec.Deny.Namespaces = []string{defaults.Namespace}
+	err = r.SetDefaults()
+	if err != nil {
+		return trace.Wrap(err)
 	}
 
 	// if we find {{ or }} but the syntax is invalid, the role is invalid
@@ -534,11 +521,8 @@ func (r *RoleV3) CheckAndSetDefaults() error {
 	if err != nil {
 		return trace.BadParameter("invalid duration: %v", err)
 	}
-	if maxSessionTTL.Duration == 0 {
-		r.Spec.Options.Set(MaxSessionTTL, NewDuration(defaults.MaxCertDuration))
-	}
 	if maxSessionTTL.Duration < defaults.MinCertDuration {
-		return trace.BadParameter("maximum session TTL can not be less than, minimal certificate duration")
+		return trace.BadParameter("maximum session TTL can not be less than minimal certificate duration")
 	}
 
 	// restrict wildcards
@@ -566,6 +550,35 @@ func (r *RoleV3) CheckAndSetDefaults() error {
 		if err != nil {
 			return trace.BadParameter("failed to process 'deny' rule %v: %v", i, err)
 		}
+	}
+	return nil
+}
+
+// SetDefaults fills in role defaults
+func (r *RoleV3) SetDefaults() error {
+	r.Metadata.SetDefaults()
+	if r.Spec.Options == nil {
+		r.Spec.Options = map[string]interface{}{
+			CertificateFormat: teleport.CertificateFormatStandard,
+			MaxSessionTTL:     NewDuration(defaults.MaxCertDuration),
+			PortForwarding:    true,
+		}
+	}
+	if r.Spec.Allow.Namespaces == nil {
+		r.Spec.Allow.Namespaces = []string{defaults.Namespace}
+	}
+	if r.Spec.Allow.NodeLabels == nil {
+		r.Spec.Allow.NodeLabels = map[string]string{Wildcard: Wildcard}
+	}
+	if r.Spec.Deny.Namespaces == nil {
+		r.Spec.Deny.Namespaces = []string{defaults.Namespace}
+	}
+	maxSessionTTL, err := r.Spec.Options.GetDuration(MaxSessionTTL)
+	if err != nil {
+		return trace.BadParameter("invalid duration: %v", err)
+	}
+	if maxSessionTTL.Duration == 0 {
+		r.Spec.Options.Set(MaxSessionTTL, NewDuration(defaults.MaxCertDuration))
 	}
 	return nil
 }
@@ -1111,18 +1124,37 @@ func (r *RoleV2) SetForwardAgent(forwardAgent bool) {
 
 // Check checks validity of all parameters and sets defaults
 func (r *RoleV2) CheckAndSetDefaults() error {
-	// make sure we have defaults for all fields
+	r.SetDefaults()
 	if r.Metadata.Name == "" {
 		return trace.BadParameter("missing parameter Name")
 	}
+	if r.Spec.MaxSessionTTL.Duration < defaults.MinCertDuration {
+		return trace.BadParameter("maximum session TTL can not be less than")
+	}
+	// restrict wildcards
+	for _, login := range r.Spec.Logins {
+		if login == Wildcard {
+			return trace.BadParameter("wildcard matcher is not allowed in logins")
+		}
+		if !cstrings.IsValidUnixUser(login) {
+			return trace.BadParameter("'%v' is not a valid user name", login)
+		}
+	}
+	for key, val := range r.Spec.NodeLabels {
+		if key == Wildcard && val != Wildcard {
+			return trace.BadParameter("selector *:<val> is not supported")
+		}
+	}
+	return nil
+}
+
+// SetDefaults fills in role defaults
+func (r *RoleV2) SetDefaults() error {
 	if r.Metadata.Namespace == "" {
 		r.Metadata.Namespace = defaults.Namespace
 	}
 	if r.Spec.MaxSessionTTL.Duration == 0 {
 		r.Spec.MaxSessionTTL.Duration = defaults.MaxCertDuration
-	}
-	if r.Spec.MaxSessionTTL.Duration < defaults.MinCertDuration {
-		return trace.BadParameter("maximum session TTL can not be less than")
 	}
 	if r.Spec.Namespaces == nil {
 		r.Spec.Namespaces = []string{defaults.Namespace}
@@ -1140,22 +1172,6 @@ func (r *RoleV2) CheckAndSetDefaults() error {
 			KindCertAuthority: RO(),
 		}
 	}
-
-	// restrict wildcards
-	for _, login := range r.Spec.Logins {
-		if login == Wildcard {
-			return trace.BadParameter("wildcard matcher is not allowed in logins")
-		}
-		if !cstrings.IsValidUnixUser(login) {
-			return trace.BadParameter("'%v' is not a valid user name", login)
-		}
-	}
-	for key, val := range r.Spec.NodeLabels {
-		if key == Wildcard && val != Wildcard {
-			return trace.BadParameter("selector *:<val> is not supported")
-		}
-	}
-
 	return nil
 }
 
@@ -1799,7 +1815,7 @@ func UnmarshalRole(data []byte) (*RoleV3, error) {
 			return nil, trace.BadParameter(err.Error())
 		}
 
-		if err := role.CheckAndSetDefaults(); err != nil {
+		if err := role.SetDefaults(); err != nil {
 			return nil, trace.Wrap(err)
 		}
 
@@ -1813,7 +1829,7 @@ func UnmarshalRole(data []byte) (*RoleV3, error) {
 			return nil, trace.BadParameter(err.Error())
 		}
 
-		if err := role.CheckAndSetDefaults(); err != nil {
+		if err := role.SetDefaults(); err != nil {
 			return nil, trace.Wrap(err)
 		}
 

@@ -355,19 +355,22 @@ func (m *Metadata) SetTTL(clock clockwork.Clock, ttl time.Duration) {
 
 // CheckAndSetDefaults checks validity of all parameters and sets defaults
 func (m *Metadata) CheckAndSetDefaults() error {
+	m.SetDefaults()
 	if m.Name == "" {
 		return trace.BadParameter("missing parameter Name")
 	}
+	return nil
+}
+
+// SetDefaults fills in metadata defaults
+func (m *Metadata) SetDefaults() {
 	if m.Namespace == "" {
 		m.Namespace = defaults.Namespace
 	}
-
-	// adjust expires time to utc if it's set
+	// adjust expires time to UTC if it's set
 	if m.Expires != nil {
 		utils.UTC(m.Expires)
 	}
-
-	return nil
 }
 
 // ParseShortcut parses resource shortcut

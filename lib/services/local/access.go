@@ -64,6 +64,11 @@ func (s *AccessService) GetRoles() ([]services.Role, error) {
 
 // CreateRole creates a role on the backend.
 func (s *AccessService) CreateRole(role services.Role, ttl time.Duration) error {
+	err := role.CheckAndSetDefaults()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
 	data, err := services.GetRoleMarshaler().MarshalRole(role)
 	if err != nil {
 		return trace.Wrap(err)
@@ -84,6 +89,11 @@ func (s *AccessService) CreateRole(role services.Role, ttl time.Duration) error 
 
 // UpsertRole updates parameters about role
 func (s *AccessService) UpsertRole(role services.Role, ttl time.Duration) error {
+	err := role.CheckAndSetDefaults()
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
 	data, err := services.GetRoleMarshaler().MarshalRole(role)
 	if err != nil {
 		return trace.Wrap(err)

@@ -73,12 +73,6 @@ func (s *RoleSuite) TestRoleParse(c *C) {
 		matchMessage string
 	}{
 		{
-			name:  "no input, should not parse",
-			in:    ``,
-			role:  RoleV3{},
-			error: trace.BadParameter("empty input"),
-		},
-		{
 			name:  "validation error, no name",
 			in:    `{}`,
 			role:  RoleV3{},
@@ -91,95 +85,10 @@ func (s *RoleSuite) TestRoleParse(c *C) {
 			error: trace.BadParameter("failed to validate: name: name is required"),
 		},
 		{
-			name: "validation error, missing resources",
-			in: `{
-		      "kind": "role",
-		      "version": "v3",
-		      "metadata": {"name": "name1"},
-		      "spec": {
-                 "allow": {
-                   "node_labels": {"a": "b"},
-                   "namespaces": ["default"],
-                   "rules": [
-                     {
-                       "verbs": ["read", "list"]
-                     }
-                   ]
-                 }
-		      }
-		    }`,
-			error:        trace.BadParameter(""),
-			matchMessage: ".*missing resources.*",
-		},
-		{
-			name: "validation error, missing verbs",
-			in: `{
-		      "kind": "role",
-		      "version": "v3",
-		      "metadata": {"name": "name1"},
-		      "spec": {
-                 "allow": {
-                   "node_labels": {"a": "b"},
-                   "namespaces": ["default"],
-                   "rules": [
-                     {
-                       "resources": ["role"]
-                     }
-                   ]
-                 }
-		      }
-		    }`,
-			error:        trace.BadParameter(""),
-			matchMessage: ".*missing verbs.*",
-		},
-		{
-			name: "validation error, unsupported function in where",
-			in: `{
-		      "kind": "role",
-		      "version": "v3",
-		      "metadata": {"name": "name1"},
-		      "spec": {
-                 "allow": {
-                   "node_labels": {"a": "b"},
-                   "namespaces": ["default"],
-                   "rules": [
-                     {
-                       "resources": ["role"],
-                       "verbs": ["read", "list"],
-                       "where": "containz(user.spec.traits[\"groups\"], \"prod\")"
-                     }
-                   ]
-                 }
-		      }
-		    }`,
-			error:        trace.BadParameter(""),
-			matchMessage: ".*unsupported function: containz.*",
-		},
-		{
-			name: "validation error, unsupported function in actions",
-			in: `{
-		      "kind": "role",
-		      "version": "v3",
-		      "metadata": {"name": "name1"},
-		      "spec": {
-                 "allow": {
-                   "node_labels": {"a": "b"},
-                   "namespaces": ["default"],
-                   "rules": [
-                     {
-                       "resources": ["role"],
-                       "verbs": ["read", "list"],
-                       "where": "contains(user.spec.traits[\"groups\"], \"prod\")",
-                       "actions": [
-                          "zzz(\"info\", \"log entry\")"
-                       ]
-                     }
-                   ]
-                 }
-		      }
-		    }`,
-			error:        trace.BadParameter(""),
-			matchMessage: ".*unsupported function: zzz.*",
+			name:  "no input, should not parse",
+			in:    ``,
+			role:  RoleV3{},
+			error: trace.BadParameter("empty input"),
 		},
 		{
 			name: "role with no spec still gets defaults",
@@ -294,6 +203,120 @@ func (s *RoleSuite) TestRoleParse(c *C) {
 			role2, err := UnmarshalRole(out)
 			c.Assert(err, IsNil, comment)
 			c.Assert(*role2, DeepEquals, tc.role, comment)
+		}
+	}
+}
+
+func (s *RoleSuite) TestRoleCheck(c *C) {
+	testCases := []struct {
+		name         string
+		in           string
+		role         RoleV3
+		error        error
+		matchMessage string
+	}{
+		{
+			name: "validation error, missing resources",
+			in: `{
+		      "kind": "role",
+		      "version": "v3",
+		      "metadata": {"name": "name1"},
+		      "spec": {
+                 "allow": {
+                   "node_labels": {"a": "b"},
+                   "namespaces": ["default"],
+                   "rules": [
+                     {
+                       "verbs": ["read", "list"]
+                     }
+                   ]
+                 }
+		      }
+		    }`,
+			error:        trace.BadParameter(""),
+			matchMessage: ".*missing resources.*",
+		},
+		{
+			name: "validation error, missing verbs",
+			in: `{
+		      "kind": "role",
+		      "version": "v3",
+		      "metadata": {"name": "name1"},
+		      "spec": {
+                 "allow": {
+                   "node_labels": {"a": "b"},
+                   "namespaces": ["default"],
+                   "rules": [
+                     {
+                       "resources": ["role"]
+                     }
+                   ]
+                 }
+		      }
+		    }`,
+			error:        trace.BadParameter(""),
+			matchMessage: ".*missing verbs.*",
+		},
+		{
+			name: "validation error, unsupported function in where",
+			in: `{
+		      "kind": "role",
+		      "version": "v3",
+		      "metadata": {"name": "name1"},
+		      "spec": {
+                 "allow": {
+                   "node_labels": {"a": "b"},
+                   "namespaces": ["default"],
+                   "rules": [
+                     {
+                       "resources": ["role"],
+                       "verbs": ["read", "list"],
+                       "where": "containz(user.spec.traits[\"groups\"], \"prod\")"
+                     }
+                   ]
+                 }
+		      }
+		    }`,
+			error:        trace.BadParameter(""),
+			matchMessage: ".*unsupported function: containz.*",
+		},
+		{
+			name: "validation error, unsupported function in actions",
+			in: `{
+		      "kind": "role",
+		      "version": "v3",
+		      "metadata": {"name": "name1"},
+		      "spec": {
+                 "allow": {
+                   "node_labels": {"a": "b"},
+                   "namespaces": ["default"],
+                   "rules": [
+                     {
+                       "resources": ["role"],
+                       "verbs": ["read", "list"],
+                       "where": "contains(user.spec.traits[\"groups\"], \"prod\")",
+                       "actions": [
+                          "zzz(\"info\", \"log entry\")"
+                       ]
+                     }
+                   ]
+                 }
+		      }
+		    }`,
+			error:        trace.BadParameter(""),
+			matchMessage: ".*unsupported function: zzz.*",
+		},
+	}
+	for i, tc := range testCases {
+		comment := Commentf("test case %v %q", i, tc.name)
+
+		// the role should unmarshal fine but fail validity check
+		role, err := UnmarshalRole([]byte(tc.in))
+		c.Assert(err, IsNil)
+		err = role.CheckAndSetDefaults()
+		c.Assert(err, NotNil, comment)
+		if tc.matchMessage != "" {
+			c.Assert(err.Error(), Matches, tc.matchMessage)
 		}
 	}
 }
