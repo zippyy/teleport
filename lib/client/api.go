@@ -1080,62 +1080,62 @@ func (tc *TeleportClient) Login(activateKey bool) (*Key, error) {
 		return nil, trace.Wrap(err)
 	}
 
-	var response *auth.SSHLoginResponse
+	var loginEntry services.SSHLoginEntry
 
 	switch pr.Auth.Type {
 	case teleport.Local:
-		response, err = tc.localLogin(pr.Auth.SecondFactor, key.Pub)
+		loginEntry, err = tc.localLogin(pr.Auth.SecondFactor, key.Pub)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
 	case teleport.OIDC:
-		response, err = tc.ssoLogin(pr.Auth.OIDC.Name, key.Pub, teleport.OIDC)
+		loginEntry, err = tc.ssoLogin(pr.Auth.OIDC.Name, key.Pub, teleport.OIDC)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
 
 		// in this case identity is returned by the proxy
-		tc.Username = response.Username
+		tc.Username = loginEntry.GetUser()
 		if tc.localAgent != nil {
-			tc.localAgent.username = response.Username
+			tc.localAgent.username = tc.Username
 		}
 	case teleport.SAML:
-		response, err = tc.ssoLogin(pr.Auth.SAML.Name, key.Pub, teleport.SAML)
+		loginEntry, err = tc.ssoLogin(pr.Auth.SAML.Name, key.Pub, teleport.SAML)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
 		// in this case identity is returned by the proxy
-		tc.Username = response.Username
+		tc.Username = loginEntry.GetUser()
 		if tc.localAgent != nil {
-			tc.localAgent.username = response.Username
+			tc.localAgent.username = tc.Username
 		}
 	case teleport.Github:
-		response, err = tc.ssoLogin(pr.Auth.Github.Name, key.Pub, teleport.Github)
+		loginEntry, err = tc.ssoLogin(pr.Auth.Github.Name, key.Pub, teleport.Github)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
 		// in this case identity is returned by the proxy
-		tc.Username = response.Username
+		tc.Username = loginEntry.GetUser()
 		if tc.localAgent != nil {
-			tc.localAgent.username = response.Username
+			tc.localAgent.username = tc.Username
 		}
 	default:
 		return nil, trace.BadParameter("unsupported authentication type: %q", pr.Auth.Type)
 	}
 
-	// extract the new certificate out of the response
-	key.Cert = response.Cert
-	key.TLSCert = response.TLSCert
+	// extract the new certificate out of the loginEntry
+	key.Cert = loginEntry.GetCert()
+	key.TLSCert = loginEntry.GetTLSCert()
 
 	if activateKey {
 		// save the list of CAs client trusts to ~/.tsh/known_hosts
-		err = tc.localAgent.AddHostSignersToCache(response.HostSigners)
+		err = tc.localAgent.AddHostSignersToCache(loginEntry.GetHostSigners())
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
 
 		// save the list of TLS CAs client trusts
-		err = tc.localAgent.SaveCerts(response.HostSigners)
+		err = tc.localAgent.SaveCerts(loginEntry.GetHostSigners())
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
@@ -1149,18 +1149,18 @@ func (tc *TeleportClient) Login(activateKey bool) (*Key, error) {
 	return key, nil
 }
 
-func (tc *TeleportClient) localLogin(secondFactor string, pub []byte) (*auth.SSHLoginResponse, error) {
+func (tc *TeleportClient) localLogin(secondFactor string, pub []byte) (services.SSHLoginEntry, error) {
 	var err error
-	var response *auth.SSHLoginResponse
+	var loginEntry services.SSHLoginEntry
 
 	switch secondFactor {
 	case teleport.OFF, teleport.OTP, teleport.TOTP, teleport.HOTP:
-		response, err = tc.directLogin(secondFactor, pub)
+		loginEntry, err = tc.directLogin(secondFactor, pub)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
 	case teleport.U2F:
-		response, err = tc.u2fLogin(pub)
+		loginEntry, err = tc.u2fLogin(pub)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
@@ -1168,12 +1168,12 @@ func (tc *TeleportClient) localLogin(secondFactor string, pub []byte) (*auth.SSH
 		return nil, trace.BadParameter("unsupported second factor type: %q", secondFactor)
 	}
 
-	return response, nil
+	return loginEntry, nil
 }
 
 // Adds a new CA as trusted CA for this client, used in tests
 func (tc *TeleportClient) AddTrustedCA(ca services.CertAuthority) error {
-	err := tc.LocalAgent().AddHostSignersToCache(auth.AuthoritiesToTrustedCerts([]services.CertAuthority{ca}))
+	err := tc.LocalAgent().AddHostSignersToCache(services.AuthoritiesToTrustedCerts([]services.CertAuthority{ca}))
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -1181,7 +1181,7 @@ func (tc *TeleportClient) AddTrustedCA(ca services.CertAuthority) error {
 	// only host CA has TLS certificates, user CA will overwrite trusted certs
 	// to empty file if called
 	if ca.GetType() == services.HostCA {
-		err = tc.LocalAgent().SaveCerts(auth.AuthoritiesToTrustedCerts([]services.CertAuthority{ca}))
+		err = tc.LocalAgent().SaveCerts(services.AuthoritiesToTrustedCerts([]services.CertAuthority{ca}))
 		if err != nil {
 			return trace.Wrap(err)
 		}
@@ -1195,7 +1195,7 @@ func (tc *TeleportClient) AddKey(host string, key *Key) (*agent.AddedKey, error)
 }
 
 // directLogin asks for a password + HOTP token, makes a request to CA via proxy
-func (tc *TeleportClient) directLogin(secondFactorType string, pub []byte) (*auth.SSHLoginResponse, error) {
+func (tc *TeleportClient) directLogin(secondFactorType string, pub []byte) (services.SSHLoginEntry, error) {
 	var err error
 
 	httpsProxyHostPort := tc.Config.ProxyWebHostPort()
@@ -1233,7 +1233,7 @@ func (tc *TeleportClient) directLogin(secondFactorType string, pub []byte) (*aut
 }
 
 // samlLogin opens browser window and uses OIDC or SAML redirect cycle with browser
-func (tc *TeleportClient) ssoLogin(connectorID string, pub []byte, protocol string) (*auth.SSHLoginResponse, error) {
+func (tc *TeleportClient) ssoLogin(connectorID string, pub []byte, protocol string) (services.SSHLoginEntry, error) {
 	log.Debugf("samlLogin start")
 	// ask the CA (via proxy) to sign our public key:
 	webProxyAddr := tc.Config.ProxyWebHostPort()
@@ -1250,7 +1250,7 @@ func (tc *TeleportClient) ssoLogin(connectorID string, pub []byte, protocol stri
 }
 
 // directLogin asks for a password and performs the challenge-response authentication
-func (tc *TeleportClient) u2fLogin(pub []byte) (*auth.SSHLoginResponse, error) {
+func (tc *TeleportClient) u2fLogin(pub []byte) (services.SSHLoginEntry, error) {
 	// U2F login requires the official u2f-host executable
 	_, err := exec.LookPath("u2f-host")
 	if err != nil {

@@ -131,11 +131,11 @@ func (m *Handler) samlACS(w http.ResponseWriter, r *http.Request, p httprouter.P
 	if len(response.Req.PublicKey) == 0 {
 		return nil, trace.BadParameter("not a web or console oidc login request")
 	}
-	redirectURL, err := ConstructSSHResponse(AuthParams{
+
+	redirectURL, err := m.constructSSHResponseURL(AuthParams{
 		ClientRedirectURL: response.Req.ClientRedirectURL,
 		Username:          response.Username,
 		Identity:          response.Identity,
-		Session:           response.Session,
 		Cert:              response.Cert,
 		TLSCert:           response.TLSCert,
 		HostSigners:       response.HostSigners,

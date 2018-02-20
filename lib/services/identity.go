@@ -26,8 +26,9 @@ import (
 
 	"github.com/gravitational/teleport/lib/defaults"
 
-	"github.com/gokyle/hotp"
 	"github.com/gravitational/trace"
+
+	"github.com/gokyle/hotp"
 	"github.com/tstranex/u2f"
 	"golang.org/x/crypto/ssh"
 )
@@ -205,6 +206,8 @@ type Identity interface {
 	CreateGithubAuthRequest(req GithubAuthRequest, ttl time.Duration) error
 	// GetGithubAuthRequest retrieves Github auth request by the token
 	GetGithubAuthRequest(stateToken string) (*GithubAuthRequest, error)
+	// CreateSSHLoginEntry constructs SSH login response
+	CreateSSHLoginEntry(res SSHLoginEntryRequest) (SSHLoginEntry, error)
 }
 
 // VerifyPassword makes sure password satisfies our requirements (relaxed),

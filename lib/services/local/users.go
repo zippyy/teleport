@@ -950,3 +950,15 @@ func (s *IdentityService) GetGithubAuthRequest(stateToken string) (*services.Git
 	}
 	return &req, nil
 }
+
+// CreateSSHLoginEntry creates SSH Login Entry object.
+func (s *IdentityService) CreateSSHLoginEntry(req services.SSHLoginEntryRequest) (services.SSHLoginEntry, error) {
+	sshLoginEntry := services.TeleportSSHLoginEntry{
+		Username:    req.Username,
+		Cert:        req.Cert,
+		TLSCert:     req.TLSCert,
+		HostSigners: req.HostSigners,
+	}
+
+	return sshLoginEntry, nil
+}

@@ -31,7 +31,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gravitational/teleport/lib/auth"
+	"github.com/gravitational/teleport/lib/services"
 
 	"github.com/gravitational/roundtrip"
 	"github.com/gravitational/trace"
@@ -128,7 +128,7 @@ type sealData struct {
 }
 
 // SSHAgentSSOLogin is used by SSH Agent (tsh) to login using OpenID connect
-func SSHAgentSSOLogin(proxyAddr, connectorID string, pubKey []byte, ttl time.Duration, insecure bool, pool *x509.CertPool, protocol string, compatibility string) (*auth.SSHLoginResponse, error) {
+func SSHAgentSSOLogin(proxyAddr, connectorID string, pubKey []byte, ttl time.Duration, insecure bool, pool *x509.CertPool, protocol string, compatibility string) (services.SSHLoginEntry, error) {
 	clt, proxyURL, err := initClient(proxyAddr, insecure, pool)
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -146,14 +146,14 @@ func SSHAgentSSOLogin(proxyAddr, connectorID string, pubKey []byte, ttl time.Dur
 		return nil, trace.Wrap(err)
 	}
 
-	waitC := make(chan *auth.SSHLoginResponse, 1)
+	waitC := make(chan services.SSHLoginEntry, 1)
 	errorC := make(chan error, 1)
 	proxyURL.Path = "/web/msg/error/login_failed"
 	redirectErrorURL := proxyURL.String()
 	proxyURL.Path = "/web/msg/info/login_success"
 	redirectSuccessURL := proxyURL.String()
 
-	makeHandler := func(fn func(http.ResponseWriter, *http.Request) (*auth.SSHLoginResponse, error)) http.Handler {
+	makeHandler := func(fn func(http.ResponseWriter, *http.Request) (services.SSHLoginEntry, error)) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			response, err := fn(w, r)
 			if err != nil {
@@ -170,7 +170,7 @@ func SSHAgentSSOLogin(proxyAddr, connectorID string, pubKey []byte, ttl time.Dur
 		})
 	}
 
-	server := httptest.NewServer(makeHandler(func(w http.ResponseWriter, r *http.Request) (*auth.SSHLoginResponse, error) {
+	server := httptest.NewServer(makeHandler(func(w http.ResponseWriter, r *http.Request) (services.SSHLoginEntry, error) {
 		if r.URL.Path != "/callback" {
 			return nil, trace.NotFound("path not found")
 		}
@@ -189,12 +189,11 @@ func SSHAgentSSOLogin(proxyAddr, connectorID string, pubKey []byte, ttl time.Dur
 		if err != nil {
 			return nil, trace.BadParameter("failed to decode response: in %v, err: %v", r.URL.String(), err)
 		}
-
-		var re *auth.SSHLoginResponse
-		err = json.Unmarshal([]byte(out), &re)
+		re, err := services.GetSSHLoginEntryMarshaler().Unmarshal([]byte(out))
 		if err != nil {
 			return nil, trace.BadParameter("failed to decode response: in %v, err: %v", r.URL.String(), err)
 		}
+
 		return re, nil
 	}))
 	defer server.Close()
@@ -339,7 +338,7 @@ func Ping(proxyAddr string, insecure bool, pool *x509.CertPool, connectorName st
 // if credentials are valid
 //
 // proxyAddr must be specified as host:port
-func SSHAgentLogin(proxyAddr, user, password, otpToken string, pubKey []byte, ttl time.Duration, insecure bool, pool *x509.CertPool, compatibility string) (*auth.SSHLoginResponse, error) {
+func SSHAgentLogin(proxyAddr, user, password, otpToken string, pubKey []byte, ttl time.Duration, insecure bool, pool *x509.CertPool, compatibility string) (services.SSHLoginEntry, error) {
 	clt, _, err := initClient(proxyAddr, insecure, pool)
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -356,8 +355,7 @@ func SSHAgentLogin(proxyAddr, user, password, otpToken string, pubKey []byte, tt
 		return nil, trace.Wrap(err)
 	}
 
-	var out *auth.SSHLoginResponse
-	err = json.Unmarshal(re.Bytes(), &out)
+	out, err := services.GetSSHLoginEntryMarshaler().Unmarshal(re.Bytes())
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -369,7 +367,7 @@ func SSHAgentLogin(proxyAddr, user, password, otpToken string, pubKey []byte, tt
 // If the credentials are valid, the proxy wiil return a challenge.
 // We then call the official u2f-host binary to perform the signing and pass the signature to the proxy.
 // If the authentication succeeds, we will get a temporary certificate back
-func SSHAgentU2FLogin(proxyAddr, user, password string, pubKey []byte, ttl time.Duration, insecure bool, pool *x509.CertPool, compatibility string) (*auth.SSHLoginResponse, error) {
+func SSHAgentU2FLogin(proxyAddr, user, password string, pubKey []byte, ttl time.Duration, insecure bool, pool *x509.CertPool, compatibility string) (services.SSHLoginEntry, error) {
 	clt, _, err := initClient(proxyAddr, insecure, pool)
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -445,8 +443,7 @@ func SSHAgentU2FLogin(proxyAddr, user, password string, pubKey []byte, ttl time.
 		return nil, trace.Wrap(err)
 	}
 
-	var out *auth.SSHLoginResponse
-	err = json.Unmarshal(re.Bytes(), &out)
+	out, err := services.GetSSHLoginEntryMarshaler().Unmarshal(re.Bytes())
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}

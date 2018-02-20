@@ -751,3 +751,16 @@ func (*TeleportCertAuthorityMarshaler) MarshalCertAuthority(ca CertAuthority, op
 		return nil, trace.BadParameter("version %v is not supported", version)
 	}
 }
+
+// AuthoritiesToTrustedCerts serializes authorities to TrustedCerts data structure
+func AuthoritiesToTrustedCerts(authorities []CertAuthority) []TrustedCerts {
+	out := make([]TrustedCerts, len(authorities))
+	for i, ca := range authorities {
+		out[i] = TrustedCerts{
+			ClusterName:      ca.GetClusterName(),
+			HostCertificates: ca.GetCheckingKeys(),
+			TLSCertificates:  TLSCerts(ca),
+		}
+	}
+	return out
+}

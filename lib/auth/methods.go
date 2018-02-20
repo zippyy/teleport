@@ -218,63 +218,9 @@ func (a *AuthenticateSSHRequest) CheckAndSetDefaults() error {
 	return nil
 }
 
-// SSHLoginResponse is a response returned by web proxy, it preserves backwards compatibility
-// on the wire, which is the primary reason for non-matching json tags
-type SSHLoginResponse struct {
-	// User contains a logged in user informationn
-	Username string `json:"username"`
-	// Cert is a PEM encoded  signed certificate
-	Cert []byte `json:"cert"`
-	// TLSCertPEM is a PEM encoded TLS certificate signed by TLS certificate authority
-	TLSCert []byte `json:"tls_cert"`
-	// HostSigners is a list of signing host public keys trusted by proxy
-	HostSigners []TrustedCerts `json:"host_signers"`
-}
-
-// TrustedCerts contains host certificates, it preserves backwards compatibility
-// on the wire, which is the primary reason for non-matching json tags
-type TrustedCerts struct {
-	// ClusterName identifies teleport cluster name this authority serves,
-	// for host authorities that means base hostname of all servers,
-	// for user authorities that means organization name
-	ClusterName string `json:"domain_name"`
-	// HostCertificates is a list of SSH public keys that can be used to check
-	// host certificate signatures
-	HostCertificates [][]byte `json:"checking_keys"`
-	// TLSCertificates  is a list of TLS certificates of the certificate authoritiy
-	// of the authentication server
-	TLSCertificates [][]byte `json:"tls_certs"`
-}
-
-// SSHCertPublicKeys returns a list of trusted host SSH certificate authority public keys
-func (c *TrustedCerts) SSHCertPublicKeys() ([]ssh.PublicKey, error) {
-	out := make([]ssh.PublicKey, 0, len(c.HostCertificates))
-	for _, keyBytes := range c.HostCertificates {
-		publicKey, _, _, _, err := ssh.ParseAuthorizedKey(keyBytes)
-		if err != nil {
-			return nil, trace.Wrap(err)
-		}
-		out = append(out, publicKey)
-	}
-	return out, nil
-}
-
-// AuthoritiesToTrustedCerts serializes authorities to TrustedCerts data structure
-func AuthoritiesToTrustedCerts(authorities []services.CertAuthority) []TrustedCerts {
-	out := make([]TrustedCerts, len(authorities))
-	for i, ca := range authorities {
-		out[i] = TrustedCerts{
-			ClusterName:      ca.GetClusterName(),
-			HostCertificates: ca.GetCheckingKeys(),
-			TLSCertificates:  services.TLSCerts(ca),
-		}
-	}
-	return out
-}
-
 // AuthenticateSSHUser authenticates web user, creates and  returns web session
 // in case if authentication is successful
-func (s *AuthServer) AuthenticateSSHUser(req AuthenticateSSHRequest) (*SSHLoginResponse, error) {
+func (s *AuthServer) AuthenticateSSHUser(req AuthenticateSSHRequest) (services.SSHLoginEntry, error) {
 	if err := s.AuthenticateUser(req.AuthenticateUserRequest); err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -300,12 +246,18 @@ func (s *AuthServer) AuthenticateSSHUser(req AuthenticateSSHRequest) (*SSHLoginR
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	return &SSHLoginResponse{
+
+	sshLoginEntry, err := s.CreateSSHLoginEntry(services.SSHLoginEntryRequest{
 		Username:    req.Username,
 		Cert:        certs.ssh,
 		TLSCert:     certs.tls,
-		HostSigners: AuthoritiesToTrustedCerts(hostCertAuthorities),
-	}, nil
+		HostSigners: services.AuthoritiesToTrustedCerts(hostCertAuthorities),
+	})
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	return sshLoginEntry, nil
 }
 
 // DELETE IN: 2.6.0

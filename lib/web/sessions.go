@@ -492,7 +492,7 @@ func (s *sessionCache) AuthWithU2FSignResponse(user string, response *u2f.SignRe
 	})
 }
 
-func (s *sessionCache) GetCertificateWithoutOTP(c client.CreateSSHCertReq) (*auth.SSHLoginResponse, error) {
+func (s *sessionCache) GetCertificateWithoutOTP(c client.CreateSSHCertReq) (services.SSHLoginEntry, error) {
 	return s.proxyClient.AuthenticateSSHUser(auth.AuthenticateSSHRequest{
 		AuthenticateUserRequest: auth.AuthenticateUserRequest{
 			Username: c.User,
@@ -506,7 +506,7 @@ func (s *sessionCache) GetCertificateWithoutOTP(c client.CreateSSHCertReq) (*aut
 	})
 }
 
-func (s *sessionCache) GetCertificateWithOTP(c client.CreateSSHCertReq) (*auth.SSHLoginResponse, error) {
+func (s *sessionCache) GetCertificateWithOTP(c client.CreateSSHCertReq) (services.SSHLoginEntry, error) {
 	return s.proxyClient.AuthenticateSSHUser(auth.AuthenticateSSHRequest{
 		AuthenticateUserRequest: auth.AuthenticateUserRequest{
 			Username: c.User,
@@ -522,7 +522,7 @@ func (s *sessionCache) GetCertificateWithOTP(c client.CreateSSHCertReq) (*auth.S
 
 }
 
-func (s *sessionCache) GetCertificateWithU2F(c client.CreateSSHCertWithU2FReq) (*auth.SSHLoginResponse, error) {
+func (s *sessionCache) GetCertificateWithU2F(c client.CreateSSHCertWithU2FReq) (services.SSHLoginEntry, error) {
 	return s.proxyClient.AuthenticateSSHUser(auth.AuthenticateSSHRequest{
 		AuthenticateUserRequest: auth.AuthenticateUserRequest{
 			Username: c.User,

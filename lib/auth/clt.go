@@ -978,7 +978,7 @@ func (c *Client) AuthenticateWebUser(req AuthenticateUserRequest) (services.WebS
 
 // AuthenticateSSHUser authenticates SSH console user, creates and  returns a pair of signed TLS and SSH
 // short lived certificates as a result
-func (c *Client) AuthenticateSSHUser(req AuthenticateSSHRequest) (*SSHLoginResponse, error) {
+func (c *Client) AuthenticateSSHUser(req AuthenticateSSHRequest) (services.SSHLoginEntry, error) {
 	out, err := c.PostJSON(
 		c.Endpoint("users", req.Username, "ssh", "authenticate"),
 		req,
@@ -986,11 +986,8 @@ func (c *Client) AuthenticateSSHUser(req AuthenticateSSHRequest) (*SSHLoginRespo
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	var re SSHLoginResponse
-	if err := json.Unmarshal(out.Bytes(), &re); err != nil {
-		return nil, trace.Wrap(err)
-	}
-	return &re, nil
+
+	return services.GetSSHLoginEntryMarshaler().Unmarshal(out.Bytes())
 }
 
 // GetWebSessionInfo checks if a web sesion is valid, returns session id in case if
@@ -1931,6 +1928,20 @@ func (c *Client) SetStaticTokens(st services.StaticTokens) error {
 	return nil
 }
 
+func (c *Client) CreateSSHLoginEntry(req services.SSHLoginEntryRequest) (services.SSHLoginEntry, error) {
+	out, err := c.PostJSON(c.Endpoint("ssh", "loginentry"), &req)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	res, err := services.GetSSHLoginEntryMarshaler().Unmarshal(out.Bytes())
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	return res, nil
+}
+
 func (c *Client) GetAuthPreference() (services.AuthPreference, error) {
 	out, err := c.Get(c.Endpoint("authentication", "preference"), url.Values{})
 	if err != nil {
@@ -2231,6 +2242,9 @@ type IdentityService interface {
 	// CreateSignupToken creates one time token for creating account for the user
 	// For each token it creates username and OTP key
 	CreateSignupToken(user services.UserV1, ttl time.Duration) (string, error)
+
+	// CreateSSHLoginEntry creates SSH response
+	CreateSSHLoginEntry(req services.SSHLoginEntryRequest) (services.SSHLoginEntry, error)
 }
 
 // ProvisioningService is a service in control
@@ -2284,7 +2298,7 @@ type ClientI interface {
 	AuthenticateWebUser(req AuthenticateUserRequest) (services.WebSession, error)
 	// AuthenticateSSHUser authenticates SSH console user, creates and  returns a pair of signed TLS and SSH
 	// short lived certificates as a result
-	AuthenticateSSHUser(req AuthenticateSSHRequest) (*SSHLoginResponse, error)
+	AuthenticateSSHUser(req AuthenticateSSHRequest) (services.SSHLoginEntry, error)
 
 	// DELETE IN: 2.6.0
 	// ExchangeCerts exchanges TLS certificates between host certificate authorities of trusted clusters

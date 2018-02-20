@@ -96,6 +96,8 @@ func NewAPIServer(config *APIConfig) http.Handler {
 	srv.POST("/:version/users/:user/web/sessions", srv.withAuth(srv.createWebSession))
 	srv.POST("/:version/users/:user/web/authenticate", srv.withAuth(srv.authenticateWebUser))
 	srv.POST("/:version/users/:user/ssh/authenticate", srv.withAuth(srv.authenticateSSHUser))
+	srv.POST("/:version/ssh/loginentry", srv.withAuth(srv.createSSHLoginEntry))
+
 	srv.GET("/:version/users/:user/web/sessions/:sid", srv.withAuth(srv.getWebSession))
 	srv.DELETE("/:version/users/:user/web/sessions/:sid", srv.withAuth(srv.deleteWebSession))
 	srv.GET("/:version/signuptokens/:token", srv.withAuth(srv.getSignupTokenData))
@@ -2087,6 +2089,21 @@ func (s *APIServer) setStaticTokens(auth ClientI, w http.ResponseWriter, r *http
 	}
 
 	return message(fmt.Sprintf("static tokens set: %+v", st)), nil
+}
+
+func (s *APIServer) createSSHLoginEntry(auth ClientI, w http.ResponseWriter, r *http.Request, p httprouter.Params, version string) (interface{}, error) {
+	var req services.SSHLoginEntryRequest
+	err := httplib.ReadJSON(r, &req)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	res, err := auth.CreateSSHLoginEntry(req)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	return res, nil
 }
 
 func (s *APIServer) getClusterAuthPreference(auth ClientI, w http.ResponseWriter, r *http.Request, p httprouter.Params, version string) (interface{}, error) {

@@ -27,7 +27,7 @@ import (
 	"golang.org/x/crypto/ssh/agent"
 
 	"github.com/gravitational/teleport"
-	"github.com/gravitational/teleport/lib/auth"
+	"github.com/gravitational/teleport/lib/services"
 	"github.com/gravitational/teleport/lib/sshutils"
 	"github.com/gravitational/trace"
 
@@ -219,7 +219,7 @@ func (a *LocalKeyAgent) GetKey() (*Key, error) {
 //
 // Why do we trust these CAs? Because we received them from a trusted Teleport Proxy.
 // Why do we trust the proxy? Because we've connected to it via HTTPS + username + Password + HOTP.
-func (a *LocalKeyAgent) AddHostSignersToCache(certAuthorities []auth.TrustedCerts) error {
+func (a *LocalKeyAgent) AddHostSignersToCache(certAuthorities []services.TrustedCerts) error {
 	for _, ca := range certAuthorities {
 		publicKeys, err := ca.SSHCertPublicKeys()
 		if err != nil {
@@ -235,7 +235,7 @@ func (a *LocalKeyAgent) AddHostSignersToCache(certAuthorities []auth.TrustedCert
 	return nil
 }
 
-func (a *LocalKeyAgent) SaveCerts(certAuthorities []auth.TrustedCerts) error {
+func (a *LocalKeyAgent) SaveCerts(certAuthorities []services.TrustedCerts) error {
 	return a.keyStore.SaveCerts(a.proxyHost, certAuthorities)
 }
 

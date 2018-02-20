@@ -82,7 +82,7 @@ func (a *AuthWithRoles) AuthenticateWebUser(req AuthenticateUserRequest) (servic
 
 // AuthenticateSSHUser authenticates SSH console user, creates and  returns a pair of signed TLS and SSH
 // short lived certificates as a result
-func (a *AuthWithRoles) AuthenticateSSHUser(req AuthenticateSSHRequest) (*SSHLoginResponse, error) {
+func (a *AuthWithRoles) AuthenticateSSHUser(req AuthenticateSSHRequest) (services.SSHLoginEntry, error) {
 	// authentication request has it's own authentication, however this limits the requests
 	// types to proxies to make it harder to break
 	if !a.checker.HasRole(string(teleport.RoleProxy)) {
@@ -1061,6 +1061,10 @@ func (a *AuthWithRoles) UpsertTrustedCluster(tc services.TrustedCluster) (servic
 func (a *AuthWithRoles) ValidateTrustedCluster(validateRequest *ValidateTrustedClusterRequest) (*ValidateTrustedClusterResponse, error) {
 	// the token provides it's own authorization and authentication
 	return a.authServer.validateTrustedCluster(validateRequest)
+}
+
+func (a *AuthWithRoles) CreateSSHLoginEntry(request services.SSHLoginEntryRequest) (services.SSHLoginEntry, error) {
+	return a.authServer.CreateSSHLoginEntry(request)
 }
 
 func (a *AuthWithRoles) DeleteTrustedCluster(name string) error {
