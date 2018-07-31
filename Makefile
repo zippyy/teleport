@@ -23,17 +23,26 @@ TELEPORT_DEBUG ?= no
 GITTAG=v$(VERSION)
 BUILDFLAGS ?= $(ADDFLAGS) -ldflags '-w -s'
 
-ARCH=`go env GOOS`-`go env GOARCH`
-RELEASE=teleport-$(GITTAG)-$(ARCH)-bin
+OS ?= $(shell go env GOOS)
+ARCH ?= $(shell go env GOARCH)
+
+# On Windows only build tsh. On all other platforms build teleport, tctl,
+# and tsh.
 BINARIES=$(BUILDDIR)/teleport $(BUILDDIR)/tctl $(BUILDDIR)/tsh
+RELEASE=teleport-$(GITTAG)-$(OS)-$(ARCH)-bin
+OS_MESSAGE = "Building Teleport binaries with GOOS=$(OS) GOARCH=$(ARCH)."
+ifeq ("$(OS)","windows")
+BINARIES=$(BUILDDIR)/tsh
+RELEASE=tsh-$(GITTAG)-$(OS)-$(ARCH)-bin
+endif
 
 VERSRC = version.go gitref.go
 
 # PAM support will only be built into Teleport if headers exist at build time.
-PAM_MESSAGE = "Building Teleport without PAM support."
+PAM_MESSAGE = "Building Teleport binaries without PAM support."
 ifneq ("$(wildcard /usr/include/security/pam_appl.h)","")
 PAMFLAGS = -tags pam
-PAM_MESSAGE = "Building Teleport with PAM support."
+PAM_MESSAGE = "Building Teleport binaries with PAM support."
 endif
 
 KUBECONFIG ?=
@@ -41,7 +50,7 @@ TEST_KUBE ?=
 export
 
 #
-# 'make all' builds all 3 executables and plaaces them in a current directory
+# 'make all' builds all 3 executables and places them in the current directory.
 #
 # IMPORTANT: the binaries will not contain the web UI assets and `teleport`
 #            won't start without setting the environment variable DEBUG=1
@@ -49,6 +58,7 @@ export
 #            a web UI.
 .PHONY: all
 all: $(VERSRC)
+	@echo $(OS_MESSAGE)
 	@echo $(PAM_MESSAGE)
 	$(MAKE) $(BINARIES)
 
@@ -67,35 +77,55 @@ $(BUILDDIR)/teleport:
 
 .PHONY: $(BUILDDIR)/tsh
 $(BUILDDIR)/tsh:
-	go build $(PAMFLAGS) -o $(BUILDDIR)/tsh $(BUILDFLAGS) ./tool/tsh
+	GOOS=$(OS) go build $(PAMFLAGS) -o $(BUILDDIR)/tsh $(BUILDFLAGS) ./tool/tsh
 
 #
-# make full - builds the binary with the built-in web assets and places it
-#     into $(BUILDDIR)
+# make full - Builds Teleport binaries with the built-in web assets and
+# places them into $(BUILDDIR). On Windows, this target is skipped because
+# only tsh is built.
 #
 .PHONY:full
 full: all $(BUILDDIR)/webassets.zip
+ifneq ("$(OS)", "windows")
 	cat $(BUILDDIR)/webassets.zip >> $(BUILDDIR)/teleport
 	rm -fr $(BUILDDIR)/webassets.zip
 	zip -q -A $(BUILDDIR)/teleport
 	if [ -f e/Makefile ]; then $(MAKE) -C e full; fi
+endif
 
+#
+# make clean - Removed all build artifacts.
+#
 .PHONY: clean
 clean:
 	rm -rf $(BUILDDIR)
 	rm -rf $(GOCACHEDIR)
 	rm -rf teleport
+	rm -rf tsh
 	rm -rf *.gz
+	rm -rf *.zip
 	rm -f gitref.go
 	rm -rf `go env GOPATH`/pkg/`go env GOHOSTOS`_`go env GOARCH`/github.com/gravitational/teleport*
 	@if [ -f e/Makefile ]; then $(MAKE) -C e clean; fi
 
 #
-# make release - produces a binary release tarball
+# make release - Produces a binary release tarball.
 #
 .PHONY:
 export
-release: clean full
+release:
+ifeq ("$(OS)", "windows")
+	$(MAKE) --no-print-directory release-windows
+else
+	$(MAKE) --no-print-directory release-unix
+endif
+
+#
+# make release-unix - Produces a binary release tarball containing teleport,
+# tctl, and tsh.
+#
+.PHONY:
+release-unix: clean full
 	mkdir teleport
 	cp -rf $(BUILDDIR)/* \
 		examples \
@@ -107,7 +137,24 @@ release: clean full
 	tar -czf $(RELEASE).tar.gz teleport
 	rm -rf teleport
 	@echo "\nCREATED: $(RELEASE).tar.gz"
-	if [ -f e/Makefile ]; then $(MAKE) -C e release; fi
+	@if [ -f e/Makefile ]; then $(MAKE) -C e release; fi
+
+#
+# make release-windows - Produces a binary release tarball containing teleport,
+# tctl, and tsh.
+#
+.PHONY:
+release-windows: clean all
+	mkdir tsh
+	cp -rf $(BUILDDIR)/* \
+		README.md \
+		CHANGELOG.md \
+		tsh/
+	mv tsh/tsh tsh/tsh.exe
+	echo $(GITTAG) > tsh/VERSION
+	zip -9 -y -r -q $(RELEASE).zip tsh/
+	rm -rf tsh
+	@echo "\nCREATED: $(RELEASE).zip"
 
 #
 # Builds docs using containerized mkdocs
@@ -162,7 +209,9 @@ tag:
 # build/webassets.zip archive contains the web assets (UI) which gets
 # appended to teleport binary
 $(BUILDDIR)/webassets.zip:
+ifneq ("$(OS)", "windows")
 	cd web/dist ; zip -qr ../../$(BUILDDIR)/webassets.zip .
+endif
 
 .PHONY: test-package
 test-package: remove-temp-files
