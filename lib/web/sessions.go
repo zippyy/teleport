@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -614,6 +615,8 @@ func (s *sessionCache) ValidateSession(user, sid string) (*SessionContext, error
 		return nil, trace.Wrap(err)
 	}
 
+	fmt.Printf("--> START FRESH FROM HERE.\n")
+
 	certPool, err := services.CertPool(ca)
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -631,6 +634,10 @@ func (s *sessionCache) ValidateSession(user, sid string) (*SessionContext, error
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+
+	fmt.Printf("--> web/sessions: enter\n")
+	_, err = userClient.GetUser("sjones")
+	fmt.Printf("--> web/sessions: exit: err=%v\n", err)
 
 	c := &SessionContext{
 		clt:       userClient,

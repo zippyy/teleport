@@ -18,7 +18,9 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"net/url"
+	//"runtime/debug"
 	"time"
 
 	"github.com/gravitational/teleport"
@@ -41,22 +43,34 @@ type AuthWithRoles struct {
 }
 
 func (a *AuthWithRoles) actionWithContext(ctx *services.Context, namespace string, resource string, action string) error {
-	return a.checker.CheckAccessToRule(ctx, namespace, resource, action)
+	return a.checker.CheckAccessToRule(ctx, namespace, resource, action, false)
 }
 
 func (a *AuthWithRoles) action(namespace string, resource string, action string) error {
-	return a.checker.CheckAccessToRule(&services.Context{User: a.user}, namespace, resource, action)
+	return a.checker.CheckAccessToRule(&services.Context{User: a.user}, namespace, resource, action, false)
 }
 
 // currentUserAction is a special checker that allows certain actions for users
 // even if they are not admins, e.g. update their own passwords,
 // or generate certificates, otherwise it will require admin privileges
 func (a *AuthWithRoles) currentUserAction(username string) error {
+	//debug.PrintStack()
+	fmt.Printf("--> AuthWithRoles: currentUserAction: username=%v, a.user.GetName(): %v.\n", username, a.user.GetName())
 	if username == a.user.GetName() {
+		fmt.Printf("--> AuthWithRoles: User match: success.\n")
 		return nil
 	}
-	return a.checker.CheckAccessToRule(&services.Context{User: a.user},
-		defaults.Namespace, services.KindUser, services.VerbCreate)
+	fmt.Printf("--> AuthWithRoles: User match: failed.\n")
+
+	err := a.checker.CheckAccessToRule(&services.Context{User: a.user},
+		defaults.Namespace, services.KindUser, services.VerbCreate, false)
+	if err != nil {
+		fmt.Printf("--> AuthWithRoles: CheckAccessToRule failed: %v.\n", err)
+		return trace.Wrap(err)
+	}
+
+	fmt.Printf("--> AuthWithRoles: CheckAccessToRule: success.\n")
+	return nil
 }
 
 // authConnectorAction is a special checker that grants access to auth
@@ -64,8 +78,8 @@ func (a *AuthWithRoles) currentUserAction(username string) error {
 // If not, it checks if the requester has the meta KindAuthConnector access
 // (which grants access to all connectors).
 func (a *AuthWithRoles) authConnectorAction(namespace string, resource string, verb string) error {
-	if err := a.checker.CheckAccessToRule(&services.Context{User: a.user}, namespace, resource, verb); err != nil {
-		if err := a.checker.CheckAccessToRule(&services.Context{User: a.user}, namespace, services.KindAuthConnector, verb); err != nil {
+	if err := a.checker.CheckAccessToRule(&services.Context{User: a.user}, namespace, resource, verb, false); err != nil {
+		if err := a.checker.CheckAccessToRule(&services.Context{User: a.user}, namespace, services.KindAuthConnector, verb, false); err != nil {
 			return trace.Wrap(err)
 		}
 	}
@@ -522,8 +536,8 @@ func (a *AuthWithRoles) GetUser(name string) (services.User, error) {
 	// TODO(klizhentas) before merge, check security implications of this change,
 	// it looks harmless enough, but make sure there is no leakage of secrets here
 	// make sure that GetUser is safe to call, and it should never leak any secrets
-	if err := a.action(defaults.Namespace, services.KindUser, services.VerbRead); err != nil {
-		if err := a.currentUserAction(name); err != nil {
+	if err := a.currentUserAction(name); err != nil {
+		if err := a.action(defaults.Namespace, services.KindUser, services.VerbRead); err != nil {
 			return nil, trace.Wrap(err)
 		}
 	}

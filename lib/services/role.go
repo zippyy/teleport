@@ -19,6 +19,7 @@ package services
 import (
 	"encoding/json"
 	"fmt"
+	//"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -1254,7 +1255,7 @@ type AccessChecker interface {
 	CheckAccessToServer(login string, server Server) error
 
 	// CheckAccessToRule checks access to a rule within a namespace.
-	CheckAccessToRule(context RuleContext, namespace string, rule string, verb string) error
+	CheckAccessToRule(context RuleContext, namespace string, rule string, verb string, silent bool) error
 
 	// CheckLoginDuration checks if role set can login up to given duration and
 	// returns a combined list of allowed logins.
@@ -1669,7 +1670,7 @@ func (set RoleSet) String() string {
 	return fmt.Sprintf("roles %v", strings.Join(roleNames, ","))
 }
 
-func (set RoleSet) CheckAccessToRule(ctx RuleContext, namespace string, resource string, verb string) error {
+func (set RoleSet) CheckAccessToRule(ctx RuleContext, namespace string, resource string, verb string, silent bool) error {
 	whereParser, err := GetWhereParserFn()(ctx)
 	if err != nil {
 		return trace.Wrap(err)
@@ -1687,7 +1688,9 @@ func (set RoleSet) CheckAccessToRule(ctx RuleContext, namespace string, resource
 				return trace.Wrap(err)
 			}
 			if matched {
-				log.Infof("[RBAC] %s access to %s [namespace %s] denied for role %q: deny rule matched", verb, resource, namespace, role.GetName())
+				if !silent {
+					log.Infof("[RBAC] %s access to %s [namespace %s] denied for role %q: deny rule matched", verb, resource, namespace, role.GetName())
+				}
 				return trace.AccessDenied("access denied to perform action '%s' on %s", verb, resource)
 			}
 		}
@@ -1707,7 +1710,10 @@ func (set RoleSet) CheckAccessToRule(ctx RuleContext, namespace string, resource
 		}
 	}
 
-	log.Infof("[RBAC] %s access to %s [namespace %s] denied for %v: no allow rule matched", verb, resource, namespace, set)
+	//debug.PrintStack()
+	if !silent {
+		log.Infof("[RBAC] %s access to %s [namespace %s] denied for %v: no allow rule matched", verb, resource, namespace, set)
+	}
 	return trace.AccessDenied("access denied to perform action %q on %q", verb, resource)
 }
 

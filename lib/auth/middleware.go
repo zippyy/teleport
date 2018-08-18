@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"net"
 	"net/http"
 
@@ -107,6 +108,7 @@ func NewTLSServer(cfg TLSServerConfig) (*TLSServer, error) {
 			Handler: limiter,
 		},
 	}
+	server.TLS.ClientAuth = tls.RequireAndVerifyClientCert
 	server.TLS.GetConfigForClient = server.GetConfigForClient
 	return server, nil
 }
@@ -193,6 +195,7 @@ func (a *AuthMiddleware) GetUser(r *http.Request) (interface{}, error) {
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+	fmt.Printf("--> AuthMiddleware: %v\n", identity.Username)
 	// If there is any restriction on the certificate usage
 	// reject the API server request. This is done so some classes
 	// of certificates issued for kubernetes usage by proxy, can not be used

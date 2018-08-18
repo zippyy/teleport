@@ -84,7 +84,7 @@ func getLogins(roleSet services.RoleSet) []string {
 
 func hasAccess(roleSet services.RoleSet, ctx *services.Context, kind string, verbs ...string) bool {
 	for _, verb := range verbs {
-		err := roleSet.CheckAccessToRule(ctx, defaults.Namespace, kind, verb)
+		err := roleSet.CheckAccessToRule(ctx, defaults.Namespace, kind, verb, true)
 		if err != nil {
 			return false
 		}

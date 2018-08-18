@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -138,10 +139,19 @@ func NewTLSClientWithDialer(dialContext DialContext, cfg *tls.Config, params ...
 	// this logic is necessary to force client to always send certificate
 	// regardless of the server setting, otherwise client may pick
 	// not to send the client certificate by looking at certificate request
+	//fmt.Printf("--> auth/clt: len(cfg.Certificates): %v.\n", len(cfg.Certificates))
 	if len(cfg.Certificates) != 0 {
 		cert := cfg.Certificates[0]
+		//for i := 0; i < len(cert.Certificate); i++ {
+		//	cccc, _ := x509.ParseCertificate(cert.Certificate[i])
+		//	fmt.Printf("--> auth/clt: %v\n", cccc.Subject)
+		//}
 		cfg.Certificates = nil
 		cfg.GetClientCertificate = func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			for i := 0; i < len(cert.Certificate); i++ {
+				cccc, _ := x509.ParseCertificate(cert.Certificate[i])
+				fmt.Printf("--> auth/clt: %v\n", cccc.Subject)
+			}
 			return &cert, nil
 		}
 	}

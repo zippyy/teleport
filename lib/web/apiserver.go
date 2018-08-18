@@ -287,6 +287,7 @@ func NewHandler(cfg Config, opts ...HandlerOption) (*RewritingHandler, error) {
 				Session: base64.StdEncoding.EncodeToString([]byte("{}")),
 			}
 
+			fmt.Printf("--> web/apiserver: Trying to AuthenticateRequest.\n")
 			ctx, err := h.AuthenticateRequest(w, r, false)
 			if err == nil {
 				re, err := NewSessionResponse(ctx)
@@ -962,8 +963,10 @@ func NewSessionResponse(ctx *SessionContext) (*CreateSessionResponse, error) {
 	webSession := ctx.GetWebSession()
 	user, err := clt.GetUser(webSession.GetUser())
 	if err != nil {
+		fmt.Printf("--> web/apiserver: Unable to get user: %v.\n", err)
 		return nil, trace.Wrap(err)
 	}
+	fmt.Printf("--> web/apiserver: Got user.\n")
 	var roles services.RoleSet
 	for _, roleName := range user.GetRoles() {
 		role, err := clt.GetRole(roleName)
@@ -1107,6 +1110,7 @@ type renderUserInviteResponse struct {
 //
 //
 func (h *Handler) renderUserInvite(w http.ResponseWriter, r *http.Request, p httprouter.Params) (interface{}, error) {
+	fmt.Printf("--> renderUserInvite.\n")
 	token := p[0].Value
 	user, qrCodeBytes, err := h.auth.GetUserInviteInfo(token)
 	if err != nil {
@@ -1222,6 +1226,7 @@ func (h *Handler) createNewUser(w http.ResponseWriter, r *http.Request, p httpro
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+	fmt.Printf("--> web/apiserver: createNewUser: ValidateSession(%v, %v).\n", sess.GetUser(), sess.GetName())
 	ctx, err := h.auth.ValidateSession(sess.GetUser(), sess.GetName())
 	if err != nil {
 		return nil, trace.Wrap(err)
