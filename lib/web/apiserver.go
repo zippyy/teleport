@@ -103,8 +103,8 @@ type Config struct {
 	// ProxyWebAddr points to the web (HTTPS) address of the proxy
 	ProxyWebAddr utils.NetAddr
 
-	// ClientTLSConfig is the TLS configuration the client uses.
-	ClientTLSConfig *tls.Config
+	// ClientTLS is the TLS configuration the client uses.
+	CipherSuites []uint16
 
 	// ProxySettings is a settings communicated to proxy
 	ProxySettings client.ProxySettings
@@ -126,7 +126,7 @@ func (r *RewritingHandler) Close() error {
 // NewHandler returns a new instance of web proxy handler
 func NewHandler(cfg Config, opts ...HandlerOption) (*RewritingHandler, error) {
 	const apiPrefix = "/" + teleport.WebAPIVersion
-	lauth, err := newSessionCache(cfg.ProxyClient, []utils.NetAddr{cfg.AuthServers}, cfg.ClientTLSConfig)
+	lauth, err := newSessionCache(cfg.ProxyClient, []utils.NetAddr{cfg.AuthServers}, cfg.CipherSuites)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}

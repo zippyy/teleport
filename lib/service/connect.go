@@ -23,7 +23,7 @@ func (process *TeleportProcess) connectToAuthService(role teleport.Role) (*Conne
 	return connector, nil
 }
 
-func (process *TeleportProcess) connect(role teleport.Role) (conn *Connector, err error) {
+func (process *TeleportProcess) connect(role teleport.Role) (*Connector, error) {
 	state, err := process.storage.GetState(role)
 	if err != nil {
 		if !trace.IsNotFound(err) {

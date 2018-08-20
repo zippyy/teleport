@@ -140,6 +140,7 @@ func NewTLSClientWithDialer(dialContext DialContext, cfg *tls.Config, params ...
 	// regardless of the server setting, otherwise client may pick
 	// not to send the client certificate by looking at certificate request
 	if len(cfg.Certificates) != 0 {
+		fmt.Printf("trying to set GetClientCertificate callbacl\n")
 		cert := cfg.Certificates[0]
 		cfg.Certificates = nil
 		cfg.GetClientCertificate = func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {

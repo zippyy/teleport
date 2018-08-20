@@ -350,7 +350,7 @@ func (c *SessionContext) Close() error {
 }
 
 // newSessionCache returns new instance of the session cache
-func newSessionCache(proxyClient auth.ClientI, servers []utils.NetAddr, clientTLSConfig *tls.Config) (*sessionCache, error) {
+func newSessionCache(proxyClient auth.ClientI, servers []utils.NetAddr, cipherSuites []uint16) (*sessionCache, error) {
 	clusterName, err := proxyClient.GetClusterName()
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -382,8 +382,8 @@ type sessionCache struct {
 	closer      *utils.CloseBroadcaster
 	clusterName string
 
-	// clientTLSConfig is the TLS configuration the client uses.
-	clientTLSConfig *tls.Config
+	// cipherSuites is the list of supported TLS cipher suites.
+	cipherSuites []uint16
 }
 
 // Close closes all allocated resources and stops goroutines
@@ -623,6 +623,8 @@ func (s *sessionCache) ValidateSession(user, sid string) (*SessionContext, error
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+	//tlsConfig := utils.TLSConfig(nil)
+	fmt.Printf("--> s.clientTLSConfig: %v\n", s.clientTLSConfig)
 	tlsConfig := s.clientTLSConfig.Clone()
 	tlsCert, err := tls.X509KeyPair(sess.GetTLSCert(), sess.GetPriv())
 	if err != nil {
