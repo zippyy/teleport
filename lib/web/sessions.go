@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	//"encoding/pem"
 	"fmt"
 	"io"
 	"net"
@@ -606,6 +607,7 @@ func (s *sessionCache) ValidateSession(user, sid string) (*SessionContext, error
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+	fmt.Printf("--> web/sessions: Got sess.\n")
 
 	ca, err := s.proxyClient.GetCertAuthority(services.CertAuthID{
 		Type:       services.HostCA,
@@ -615,13 +617,12 @@ func (s *sessionCache) ValidateSession(user, sid string) (*SessionContext, error
 		return nil, trace.Wrap(err)
 	}
 
-	fmt.Printf("--> START FRESH FROM HERE.\n")
+	fmt.Printf("--> web/sessions: Got ca=%v.\n", ca)
 
 	certPool, err := services.CertPool(ca)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-
 	tlsConfig := s.clientTLSConfig.Clone()
 	tlsCert, err := tls.X509KeyPair(sess.GetTLSCert(), sess.GetPriv())
 	if err != nil {
@@ -630,14 +631,41 @@ func (s *sessionCache) ValidateSession(user, sid string) (*SessionContext, error
 	tlsConfig.Certificates = []tls.Certificate{tlsCert}
 	tlsConfig.RootCAs = certPool
 
+	ccc := tlsConfig.Certificates[0].Certificate
+	for i := 0; i < len(ccc); i++ {
+		sss, err := x509.ParseCertificates(ccc[i])
+		if err != nil {
+			fmt.Printf("--> err=%v\n", err)
+			continue
+		}
+
+		for j := 0; j < len(sss); j++ {
+			fmt.Printf("--> sss[%v]=%v\n", j, sss[j].Subject)
+		}
+
+		//block, _ := pem.Decode(ccc[i])
+		//if block == nil {
+		//	fmt.Printf("--> no pem block: %v.\n")
+		//	continue
+		//}
+		//cert, err := x509.ParseCertificate(block.Bytes)
+		//if err != nil {
+		//	fmt.Printf("--> failed to parse certificate: " + err.Error())
+		//	continue
+		//}
+		//fmt.Printf("--> web/sessions: cert.Subject: %v.\n", cert.Subject)
+	}
+
 	userClient, err := auth.NewTLSClient(s.authServers, tlsConfig)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
 
-	fmt.Printf("--> web/sessions: enter\n")
-	_, err = userClient.GetUser("sjones")
-	fmt.Printf("--> web/sessions: exit: err=%v\n", err)
+	fmt.Printf("--> web/sessions: built userClient: %v.\n", userClient)
+
+	uuu, err := userClient.GetUser("sjones")
+
+	fmt.Printf("--> web/sessions: userClient.GetUser: %v, err=%v\n", uuu, err)
 
 	c := &SessionContext{
 		clt:       userClient,

@@ -195,7 +195,7 @@ func (a *AuthMiddleware) GetUser(r *http.Request) (interface{}, error) {
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	fmt.Printf("--> AuthMiddleware: %v\n", identity.Username)
+	fmt.Printf("--> auth/middleware: clientCert.Subject: %v\n", clientCert.Subject)
 	// If there is any restriction on the certificate usage
 	// reject the API server request. This is done so some classes
 	// of certificates issued for kubernetes usage by proxy, can not be used
@@ -276,6 +276,7 @@ func (a *AuthMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		trace.WriteError(w, err)
 		return
 	}
+	fmt.Printf("--> auth/middleware: ServeHTTP: user=%v.\n", user)
 
 	// determine authenticated user based on the request parameters
 	requestWithContext := r.WithContext(context.WithValue(baseContext, ContextUser, user))
