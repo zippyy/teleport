@@ -1451,7 +1451,39 @@ func (tc *TeleportClient) Login(ctx context.Context, activateKey bool) (*Key, er
 			return nil, trace.Wrap(err)
 		}
 	}
+
 	return key, nil
+}
+
+func (tc *TeleportClient) UpdateKnownHosts(ctx context.Context) error {
+	if !tc.Config.ProxySpecified() {
+		return trace.BadParameter("proxy server is not specified")
+	}
+	proxyClient, err := tc.ConnectToProxy(ctx)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	defer proxyClient.Close()
+
+	clt, err := proxyClient.ClusterAccessPoint(ctx, true)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	// Get the list of host certificates that this cluster knows about.
+	hostCerts, err := clt.GetCertAuthorities(services.HostCA, false)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	// Write them to the ~/.tsh/known_hosts.
+	trustedCerts := auth.AuthoritiesToTrustedCerts(hostCerts)
+	err = tc.localAgent.AddHostSignersToCache(trustedCerts)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	return nil
 }
 
 func (tc *TeleportClient) localLogin(secondFactor string, pub []byte) (*auth.SSHLoginResponse, error) {
