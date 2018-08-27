@@ -410,11 +410,10 @@ func onLogin(cf *CLIConf) {
 	// regular login (without -i flag)
 	tc.SaveProfile("")
 
-	// Make the client again (this way it will pick up the updated profile) and
-	// then update the known hosts file.
-	tc, err = makeClient(cf, true)
-	if err != nil {
-		utils.FatalError(err)
+	// If a proxy public addr was set, use that instead of the passed in --proxy
+	// flag to fetch the known hosts file.
+	if tc.SSHProxyAddr != "" {
+		tc.Config.SetProxy(client.ProxyHost(tc.SSHProxyAddr), tc.ProxyWebPort(), tc.ProxySSHPort())
 	}
 	err = tc.UpdateKnownHosts(cf.Context)
 	if err != nil {

@@ -123,6 +123,9 @@ type Config struct {
 	// KubeProxyAddr is a kubernetes proxy address in host:port format
 	KubeProxyAddr string
 
+	// SSHProxyAddr is the address of the SSH proxy in host:port format.
+	SSHProxyAddr string
+
 	// KeyTTL is a time to live for the temporary SSH keypair to remain valid:
 	KeyTTL time.Duration
 
@@ -462,6 +465,9 @@ func (c *Config) SaveProfile(profileDir string, profileOptions ...ProfileOptions
 
 	var cp ClientProfile
 	cp.ProxyHost = c.ProxyHost()
+	if c.SSHProxyAddr != "" {
+		cp.ProxyHost = ProxyHost(c.SSHProxyAddr)
+	}
 	cp.Username = c.Username
 	cp.ProxySSHPort = c.ProxySSHPort()
 	cp.ProxyWebPort = c.ProxyWebPort()
@@ -573,6 +579,9 @@ func (c *Config) ProxySpecified() bool {
 // workflow built in
 type TeleportClient struct {
 	Config
+
+	//log *logrus.Entry
+
 	localAgent *LocalKeyAgent
 
 	// OnShellCreated gets called when the shell is created. It's
@@ -1318,6 +1327,7 @@ func (tc *TeleportClient) connectToProxy(ctx context.Context) (*ProxyClient, err
 			clientAddr:      tc.ClientAddr,
 		}
 	}
+
 	successMsg := fmt.Sprintf("[CLIENT] successful auth with proxy %v", proxyAddr)
 	// try to authenticate using every non interactive auth method we have:
 	for i, m := range tc.authMethods() {
@@ -1336,6 +1346,7 @@ func (tc *TeleportClient) connectToProxy(ctx context.Context) (*ProxyClient, err
 		log.Infof(successMsg)
 		return makeProxyClient(sshClient, m), nil
 	}
+
 	// we have exhausted all auth existing auth methods and local login
 	// is disabled in configuration, or the user refused connecting to untrusted hosts
 	if tc.Config.SkipLocalAuth || tc.localAgent.UserRefusedHosts() {
@@ -1567,6 +1578,9 @@ func (tc *TeleportClient) applyProxySettings(proxySettings ProxySettings) error 
 		if !exists {
 			tc.ProxyHostPort = fmt.Sprintf("%s:%d,%d", tc.ProxyHost(), tc.ProxyWebPort(), addr.Port(defaults.SSHProxyListenPort))
 		}
+	}
+	if proxySettings.SSH.PublicAddr != "" {
+		tc.SSHProxyAddr = proxySettings.SSH.PublicAddr
 	}
 	return nil
 }
